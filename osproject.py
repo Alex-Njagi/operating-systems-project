@@ -1,10 +1,13 @@
+from os import close
+
+
 class InMemoryFile:
     """
     This class represents a single openable file stored entirely in memory.
     Every file keeps track of:
-      - its byte contents
-      - the current read/write position (like a real file handle)
-      - whether it's closed
+    - its byte contents
+    - the current read/write position (like a real file handle)
+    - whether it's closed
     """
     def __init__(self):
         self.content = bytearray()     # raw bytes of the file
@@ -15,15 +18,15 @@ class InMemoryFile:
 class InMemoryFileSystem:
     """
     A tiny in-memory file system that mimics the behavior of real file operations:
-       open(path, mode)  -> returns a file object
-       read(file, size)  -> returns string
-       write(file, data) -> writes string
-       close(file)       -> closes the file
+    open(path, mode)  -> returns a file object
+    read(file, size)  -> returns string
+    write(file, data) -> writes string
+    close(file)       -> closes the file
 
     Supported modes:
-       'r'  - read existing file
-       'w'  - create new file (overwrite if exists)
-       'a'  - append to existing file (create if missing)
+    'r'  - read existing file
+    'w'  - create new file (overwrite if exists)
+    'a'  - append to existing file (create if missing)
     """
     def __init__(self):
         # Maps file paths (strings) to InMemoryFile objects
@@ -92,36 +95,40 @@ class InMemoryFileSystem:
 
     # =========================== WRITE AND CLOSE OPERATIONS ===================================
 
-    # def write(self, file, data):
-    #     """
-    #     Writes a string into the file at the current cursor position.
-    #     Extends the file automatically if necessary.
-    #     """
-    #     if file.closed:
-    #         raise ValueError("Cannot write to a closed file.")
+    def write(self, file, data, path):
+        """
+        Writes a string into the file at the current cursor position.
+        Extends the file automatically if necessary.
+        
+        """
+        if file.closed:
+            raise ValueError("Cannot write to a closed file.")
 
-    #     # Convert incoming string → bytes
-    #     data_bytes = data.encode("utf-8")
+        # Convert incoming string → bytes
+        data_bytes = data.encode("utf-8")
 
-    #     start = file.position
-    #     end = start + len(data_bytes)
+        start = file.position
+        end = start + len(data_bytes)
 
-    #     # If writing past the current file length,
-    #     # extend with zero bytes (like sparse files)
-    #     if end > len(file.content):
-    #         file.content.extend(b"\x00" * (end - len(file.content)))
+        # If writing past the current file length,
+        # extend with zero bytes (like sparse files)
+        if end > len(file.content):
+             file.content.extend(b"\x00" * (end - len(file.content)))
 
-    #     # Overwrite/insert bytes where the cursor currently is
-    #     file.content[start:end] = data_bytes
+        # Overwrite/insert bytes where the cursor currently is
+        file.content[start:end] = data_bytes
 
-    #     # Move pointer forward to end of written data
-    #     file.position = end
+        # Move pointer forward to end of written data
+        file.position = end
+        
+        self.close(file)
+        self.open(path, "a")
 
-    # def close(self, file):
-    #     """
-    #     Marks the file as closed. After this, read/write not allowed.
-    #     """
-    #     file.closed = True
+    def close(self, file):
+        """
+        Marks the file as closed. After this, read/write not allowed.
+        """
+        file.closed = True
 
 # ---------------------------
 # CLI Interface
@@ -156,6 +163,7 @@ def run_cli():
                 open_file = fs.open(path, mode)
                 open_path = path
                 print(f"Opened '{path}' in mode '{mode}'.")
+                print("Commands: read, write,")
             except Exception as e:
                 print("Error:", e)
 
@@ -173,28 +181,27 @@ def run_cli():
             except Exception as e:
                 print("Error:", e)
 
-        # elif cmd == "write":
-        #     if not open_file or open_file.closed:
-        #         print("No open file to write to.")
-        #         continue
+        elif cmd == "write":
+            if not open_file or open_file.closed:
+                print("No open file to write to.")
+                continue
 
-        #     data = input("Write data: ")
+            data = input("Write data: ")
+            try:
+                fs.write(open_file, data, path)
+                print("Data written.")
+            except Exception as e:
+                print("Error:", e)
 
-        #     try:
-        #         fs.write(open_file, data)
-        #         print("Data written.")
-        #     except Exception as e:
-        #         print("Error:", e)
+        elif cmd == "close":
+            if not open_file:
+                print("No open file to close.")
+                continue
 
-        # elif cmd == "close":
-        #     if not open_file:
-        #         print("No open file to close.")
-        #         continue
-
-        #     fs.close(open_file)
-        #     print(f"Closed '{open_path}'.")
-        #     open_file = None
-        #     open_path = None
+            fs.close(open_file)
+            print(f"Closed '{open_path}'.")
+            open_file = None
+            open_path = None
 
         elif cmd == "list":
             if not fs.files:
